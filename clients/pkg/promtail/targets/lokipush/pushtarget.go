@@ -133,6 +133,20 @@ func (t *PushTarget) handleLoki(w http.ResponseWriter, r *http.Request) {
 			lb.Set(string(k), string(v))
 		}
 
+		// Add all headers as internal labels, to be used by the relabeling process
+		// Iterate over all header fields
+		for key, values := range r.Header {
+			// Check if the header has at least one value
+			if len(values) > 0 {
+				// Add `__hdr_` prefix, convert header name to lowercase and replace dashes with underscores
+				formattedKey := fmt.Sprintf("__hdr_%s", strings.Replace(strings.ToLower(key), "-", "_", -1))
+
+				// Pick the last value of the header
+				lastValue := values[len(values)-1]
+				lb.Set(formattedKey, lastValue)
+			}
+		}
+
 		// Apply relabeling
 		processed, keep := relabel.Process(lb.Labels(), t.relabelConfig...)
 		if !keep || len(processed) == 0 {
